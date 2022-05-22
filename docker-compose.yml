@@ -1,0 +1,182 @@
+---
+
+version: "3"
+
+x-container: &container
+  restart: always
+  logging:
+    driver: json-file
+    options:
+      max-size: 50m
+
+services:
+  wg-server:
+    image: ${WIREGUARD_IMAGE_NAME:-lscr.io/linuxserver/wireguard}:${WIREGUARD_IMAGE_TAG:-1.0.20210914}
+    <<: *container
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    env_file:
+      - wg-server.env
+    environment:
+      # Number of peers to create confs for. Required for server mode. Can also be a list of names: myPC,myPhone,myTablet (alphanumeric only)
+      PEERS: 0  # Disabled because ui is used
+      # External IP or domain name for docker host. Used in server mode. If set to auto, the container will try to determine and set the external IP automatically
+      SERVERPORT: ${SERVERPORT:-51820}
+      SERVERURL: ${WIREGUARD_UI_HOST:-wg.localhost}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - /lib/modules:/lib/modules
+      - /usr/src:/usr/src
+      - wireguard_config:/config
+    expose:
+      - ${SERVERPORT:-51820}
+    labels:
+      - traefik.enable=true
+      - traefik.udp.routers.wireguard.entrypoints=wireguard
+      - traefik.udp.services.wireguard.loadbalancer.server.port=${SERVERPORT:-51820}
+    sysctls:
+      net.ipv4.conf.all.src_valid_mark: 1
+      net.ipv4.ip_forward: 1
+      # net.ipv4.tcp_congestion_control: bbr
+  wg-ui:
+    image: ${WIREGUARD_UI_IMAGE_NAME:-ngoduykhanh/wireguard-ui}:${WIREGUARD_UI_IMAGE_TAG:-v0.3.7}
+    <<: *container
+    cap_add:
+      - NET_ADMIN
+    env_file:
+      - wg-ui.env
+    environment:
+      TZ: ${TZ:-UTC}
+      WGUI_SERVER_LISTEN_PORT: ${SERVERPORT:-51820}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.wireguard_ui.entrypoints=https
+      - traefik.http.routers.wireguard_ui.rule=Host(`$WIREGUARD_UI_HOST`)
+      # - traefik.http.routers.wireguard_ui.tls.certresolver=letsencrypt
+      - traefik.http.routers.wireguard_ui.tls=true
+      - traefik.http.services.wireguard_ui.loadbalancer.server.port=5000
+      - traefik.http.services.wireguard_ui.loadbalancer.server.scheme=http
+    volumes:
+      - wireguard-ui_db:/app/db
+      - wireguard_config:/etc/wireguard
+  traefik:
+    <<: *container
+    image: ${TRAEFIK_IMAGE_NAME:-traefik}:${TRAEFIK_IMAGE_TAG:-v2.6}
+    network_mode: host
+    command: >-
+      --accessLog=true
+      --api.dashboard=true
+      --api=true
+      --certificatesresolvers.letsencrypt.acme.caserver=https://acme-v02.api.letsencrypt.org/directory
+      --certificatesresolvers.letsencrypt.acme.email=$TRAEFIK_ACME_MAIL
+      --certificatesresolvers.letsencrypt.acme.storage=/acme/storage.json
+      --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+      --entryPoints.api.address=:${TRAEFIK_API_PORT:-8080}
+      --entryPoints.api.http.redirections.entryPoint.permanent=true
+      --entryPoints.api.http.redirections.entryPoint.scheme=https
+      --entryPoints.api.http.redirections.entryPoint.to=api
+      --entryPoints.http.address=:80
+      --entryPoints.https.address=:443
+      --entryPoints.ping.address=127.0.0.1:${TRAEFIK_PING_PORT:-8082}
+      --entryPoints.wireguard.address=:${SERVERPORT:-51820}/udp
+      --global.checkNewVersion=true
+      --global.sendAnonymousUsage=false
+      --log.format=${TRAEFIK_LOG_FORMAT:-json}
+      --log.level=${TRAEFIK_LOG_LEVEL:-info}
+      --metrics.prometheus.addEntryPointsLabels=true
+      --metrics.prometheus.addServicesLabels=true
+      --metrics.prometheus.entryPoint=api
+      --metrics.prometheus.manualRouting=true
+      --pilot.dashboard=false
+      --ping.entryPoint=ping
+      --ping.manualRouting=false
+      --ping.terminatingStatusCode=503
+      --ping=true
+      --providers.docker.exposedByDefault=false
+      --providers.docker.watch=true
+      --providers.docker=true
+      --serversTransport.insecureSkipVerify=true
+    environment:
+      TZ: ${TZ:-UTC}
+    healthcheck:
+      test: >-
+        traefik
+        healthcheck
+        --entryPoints.ping.address=127.0.0.1:${TRAEFIK_PING_PORT:-8082}
+        --ping.entryPoint=ping
+    volumes:
+      - ./volumes/traefik/etc/traefik:/etc/traefik:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - traefik_acme:/acme
+    labels:  # labels are dynamic configs as well
+      ## Enable traefik for this container
+      - traefik.enable=true
+      # required when "network_mode: host", "expose:" will be ignored
+      - traefik.http.services.traefik-api.loadbalancer.server.port=${TRAEFIK_API_PORT:-8080}
+      ## Enable Traefik api and Traefik dashboard
+      - traefik.http.routers.traefik-api.tls=true
+      # - traefik.http.routers.traefik-api.tls.certresolver=letsencrypt
+      - traefik.http.routers.traefik-api.rule=Host(`$TRAEFIK_FQDN`) && (PathPrefix(`/api`, `/dashboard`) || Path(`/`))
+      - traefik.http.middlewares.traefik-redirect-dashboard.redirectregex.regex=^https:\\\\/\\\\/([^\\\\/]+)\\\\/?$$  # Redirect from "/"
+      - traefik.http.middlewares.traefik-redirect-dashboard.redirectregex.replacement=https://$$1/dashboard/  # Redirect to "/dashboard/"
+      - traefik.http.routers.traefik-api.entrypoints=api
+      - traefik.http.routers.traefik-api.service=api@internal
+      - traefik.http.routers.traefik-api.middlewares=traefik-auth@docker,traefik-redirect-dashboard@docker
+      - traefik.http.middlewares.traefik-auth.basicauth.realm=Please authenticate
+      - traefik.http.middlewares.traefik-auth.basicauth.removeheader=true
+      - traefik.http.middlewares.traefik-auth.basicauth.usersfile=/etc/traefik/htpasswd/dashboard
+      ## Enable /metrics
+      # required when "network_mode: host", "expose:" will be ignored
+      # - traefik.http.services.traefik-metrics.loadbalancer.server.port=${TRAEFIK_API_PORT:-8080}
+      # - traefik.http.routers.traefik-metrics.tls=true
+      # - traefik.http.routers.traefik-metrics.rule=Host(`$TRAEFIK_FQDN`) && Path(`/metrics`)
+      # - traefik.http.routers.traefik-metrics.entrypoints=api
+      # - traefik.http.routers.traefik-metrics.service=prometheus@internal
+      ## Global redirect to https
+      - traefik.http.routers.default-http-router.entrypoints=http
+      - traefik.http.routers.default-http-router.middlewares=default-https-redirect@docker
+      - traefik.http.routers.default-http-router.rule=HostRegexp(`{host:.+}`)
+      - traefik.http.routers.default-http-router.service=noop@internal
+      ## Default scheme redirect middleware
+      - traefik.http.middlewares.default-https-redirect.redirectScheme.scheme=https
+      - traefik.http.middlewares.default-https-redirect.redirectScheme.permanent=true
+  netdata:
+    <<: *container
+    image: ${NETDATA_IMAGE_NAME:-netdata/netdata}:${NETDATA_IMAGE_TAG:-v1.34.1}
+    hostname: ${NETDATA_HOSTNAME:-hostname.not.set}  # set to fqdn of host
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - apparmor:unconfined
+    environment:
+      DISABLE_TELEMETRY: ${NETDATA_DISABLE_TELEMETRY:-1}
+      DO_NOT_TRACK: ${NETDATA_DO_NOT_TRACK:-1}
+      PGID: ${NETDATA_PGID:-''}  # getent group docker | cut -d: -f3; or stat -c %g /var/run/docker.sock
+      TZ: ${TZ:-UTC}
+      VIRTUALIZATION: ${NETDATA_VIRTUALIZATION:-none}  # VIRTUALIZATION=$(systemd-detect-virt -v) docker-compose up
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.wireguard_ui.entrypoints=https
+      - traefik.http.routers.wireguard_ui.rule=Host(`$NETDATA_HOST`)
+      # - traefik.http.routers.wireguard_ui.tls.certresolver=letsencrypt
+      - traefik.http.routers.wireguard_ui.tls=true
+      - traefik.http.services.wireguard_ui.loadbalancer.server.port=5000
+      - traefik.http.services.wireguard_ui.loadbalancer.server.scheme=http
+    volumes:
+      - ./volumes/netdata/etc/netdata:/etc/netdata
+      - /etc/group:/host/etc/group:ro
+      - /etc/os-release:/host/etc/os-release:ro  # it can be /etc/lsb-release and dependig on you linux distro
+      - /etc/passwd:/host/etc/passwd:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - netdata_cache:/var/cache/netdata
+      - netdata_log:/var/log/netdata
+
+volumes:
+  netdata_cache:
+  netdata_log:
+  traefik_acme:
+  wireguard-ui_db:
+  wireguard_config:
