@@ -1,0 +1,10 @@
+---
+
+watch:
+  - path: /etc/wireguard/wg0.conf
+    command:
+      - bash
+      - -xec
+      - |-
+        wg syncconf wg0 <(wg-quick strip wg0)
+    container: wireguard-wg-server-1
