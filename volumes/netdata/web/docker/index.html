@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Docker containers dashboard</title>
+
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+  <main class="container">
+    <h1>Docker containers dashboard</h1>
+
+    <!-- Add charts here! -->
+      <div data-netdata="cgroup_traefik-ingress_step-ca_1.cpu_limit"></div>
+      <div data-netdata="cgroup_traefik_ingress_step_ca_1.mem_utilization"></div>
+
+  </main>
+  <script>
+    // var netdataTheme = 'default'; // this is white
+    var netdataTheme = 'slate'; // this is dark
+  </script>
+  <script type="text/javascript" src="../dashboard.js"></script>
+</body>
+</html>

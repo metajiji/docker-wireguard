@@ -79,7 +79,7 @@ services:
       --entryPoints.api.http.redirections.entryPoint.to=api
       --entryPoints.http.address=:80
       --entryPoints.https.address=:443
-      --entryPoints.ping.address=127.0.0.1:${TRAEFIK_PING_PORT:-8082}
+      --entryPoints.ping.address=127.0.0.1:${TRAEFIK_PING_PORT:-8083}
       --entryPoints.wireguard.address=:${SERVERPORT:-51820}/udp
       --global.checkNewVersion=true
       --global.sendAnonymousUsage=false
@@ -87,8 +87,9 @@ services:
       --log.level=${TRAEFIK_LOG_LEVEL:-info}
       --metrics.prometheus.addEntryPointsLabels=true
       --metrics.prometheus.addServicesLabels=true
-      --metrics.prometheus.entryPoint=api
+      --metrics.prometheus.entryPoint=ping
       --metrics.prometheus.manualRouting=true
+      --metrics.prometheus=true
       --pilot.dashboard=false
       --ping.entryPoint=ping
       --ping.manualRouting=false
@@ -104,7 +105,7 @@ services:
       test: >-
         traefik
         healthcheck
-        --entryPoints.ping.address=127.0.0.1:${TRAEFIK_PING_PORT:-8082}
+        --entryPoints.ping.address=127.0.0.1:${TRAEFIK_PING_PORT:-8083}
         --ping.entryPoint=ping
     volumes:
       - ./volumes/traefik/etc/traefik:/etc/traefik:ro
@@ -127,13 +128,12 @@ services:
       - traefik.http.middlewares.traefik-auth.basicauth.realm=Please authenticate
       - traefik.http.middlewares.traefik-auth.basicauth.removeheader=true
       - traefik.http.middlewares.traefik-auth.basicauth.usersfile=/etc/traefik/htpasswd/dashboard
-      ## Enable /metrics
-      # required when "network_mode: host", "expose:" will be ignored
-      # - traefik.http.services.traefik-metrics.loadbalancer.server.port=${TRAEFIK_API_PORT:-8080}
+      ## Enable prometheus metrics
+      - traefik.http.services.traefik-metrics.loadbalancer.server.port=${TRAEFIK_PING_PORT:-8083}
       # - traefik.http.routers.traefik-metrics.tls=true
-      # - traefik.http.routers.traefik-metrics.rule=Host(`$TRAEFIK_HOST`) && Path(`/metrics`)
-      # - traefik.http.routers.traefik-metrics.entrypoints=api
-      # - traefik.http.routers.traefik-metrics.service=prometheus@internal
+      - traefik.http.routers.traefik-metrics.rule=Path(`/metrics`)
+      - traefik.http.routers.traefik-metrics.entrypoints=ping
+      - traefik.http.routers.traefik-metrics.service=prometheus@internal
       ## Global redirect to https
       - traefik.http.routers.default-http-router.entrypoints=http
       - traefik.http.routers.default-http-router.middlewares=default-https-redirect@docker
@@ -146,6 +146,7 @@ services:
     <<: *container
     image: ${NETDATA_IMAGE_NAME:-netdata/netdata}:${NETDATA_IMAGE_TAG:-v1.34.1}
     hostname: ${NETDATA_HOSTNAME:-hostname.not.set}  # set to fqdn of netdata host
+    network_mode: host
     cap_add:
       - SYS_PTRACE
     security_opt:
@@ -162,10 +163,14 @@ services:
       - traefik.http.routers.wireguard_netdata.rule=Host(`$NETDATA_HOST`)
       # - traefik.http.routers.wireguard_netdata.tls.certresolver=letsencrypt
       - traefik.http.routers.wireguard_netdata.tls=true
+      # Middlewares
+      - traefik.http.routers.wireguard_netdata.middlewares=traefik-auth@docker
+      # Service
       - traefik.http.services.wireguard_netdata.loadbalancer.server.port=19999
       - traefik.http.services.wireguard_netdata.loadbalancer.server.scheme=http
     volumes:
       - ./volumes/netdata/etc/netdata:/etc/netdata
+      - ./volumes/netdata/web/docker:/usr/share/netdata/web/docker:ro
       - /etc/group:/host/etc/group:ro
       - /etc/os-release:/host/etc/os-release:ro  # it can be /etc/lsb-release and dependig on you linux distro
       - /etc/passwd:/host/etc/passwd:ro
