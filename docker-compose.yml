@@ -118,7 +118,7 @@ services:
       ## Enable Traefik api and Traefik dashboard
       - traefik.http.routers.traefik-api.tls=true
       # - traefik.http.routers.traefik-api.tls.certresolver=letsencrypt
-      - traefik.http.routers.traefik-api.rule=Host(`$TRAEFIK_FQDN`) && (PathPrefix(`/api`, `/dashboard`) || Path(`/`))
+      - traefik.http.routers.traefik-api.rule=Host(`$TRAEFIK_HOST`) && (PathPrefix(`/api`, `/dashboard`) || Path(`/`))
       - traefik.http.middlewares.traefik-redirect-dashboard.redirectregex.regex=^https:\\\\/\\\\/([^\\\\/]+)\\\\/?$$  # Redirect from "/"
       - traefik.http.middlewares.traefik-redirect-dashboard.redirectregex.replacement=https://$$1/dashboard/  # Redirect to "/dashboard/"
       - traefik.http.routers.traefik-api.entrypoints=api
@@ -131,7 +131,7 @@ services:
       # required when "network_mode: host", "expose:" will be ignored
       # - traefik.http.services.traefik-metrics.loadbalancer.server.port=${TRAEFIK_API_PORT:-8080}
       # - traefik.http.routers.traefik-metrics.tls=true
-      # - traefik.http.routers.traefik-metrics.rule=Host(`$TRAEFIK_FQDN`) && Path(`/metrics`)
+      # - traefik.http.routers.traefik-metrics.rule=Host(`$TRAEFIK_HOST`) && Path(`/metrics`)
       # - traefik.http.routers.traefik-metrics.entrypoints=api
       # - traefik.http.routers.traefik-metrics.service=prometheus@internal
       ## Global redirect to https
