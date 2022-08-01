@@ -1,0 +1,14 @@
+---
+
+version: "3"
+
+services:
+  wg-ui:
+    labels:
+      - traefik.http.routers.wireguard_ui.tls.certresolver=letsencrypt
+  traefik:
+    labels:
+      - traefik.http.routers.traefik-api.tls.certresolver=letsencrypt
+  netdata:
+    labels:
+      - traefik.http.routers.wireguard_netdata.tls.certresolver=letsencrypt
