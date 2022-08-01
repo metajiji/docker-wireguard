@@ -63,7 +63,7 @@ services:
       - wireguard_config:/etc/wireguard
   traefik:
     <<: *container
-    image: ${TRAEFIK_IMAGE_NAME:-traefik}:${TRAEFIK_IMAGE_TAG:-v2.6}
+    image: ${TRAEFIK_IMAGE_NAME:-traefik}:${TRAEFIK_IMAGE_TAG:-v2.8.1}
     network_mode: host
     command: >-
       --accessLog=true
@@ -80,7 +80,7 @@ services:
       --entryPoints.http.address=:80
       --entryPoints.https.address=:443
       --entryPoints.ping.address=127.0.0.1:${TRAEFIK_PING_PORT:-8083}
-      --entryPoints.wireguard.address=:${SERVERPORT:-51820}/udp
+      --entryPoints.wireguard.address=:${WIREGUARD_SERVER_PORT:-51820}/udp
       --global.checkNewVersion=true
       --global.sendAnonymousUsage=false
       --log.format=${TRAEFIK_LOG_FORMAT:-json}
@@ -144,7 +144,7 @@ services:
       - traefik.http.middlewares.default-https-redirect.redirectScheme.permanent=true
   netdata:
     <<: *container
-    image: ${NETDATA_IMAGE_NAME:-netdata/netdata}:${NETDATA_IMAGE_TAG:-v1.34.1}
+    image: ${NETDATA_IMAGE_NAME:-netdata/netdata}:${NETDATA_IMAGE_TAG:-v1.35.1}
     hostname: ${NETDATA_HOSTNAME:-hostname.not.set}  # set to fqdn of netdata host
     network_mode: host
     cap_add:
@@ -178,7 +178,6 @@ services:
       - /sys:/host/sys:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - netdata_cache:/var/cache/netdata
-      - netdata_log:/var/log/netdata
   reloader:
     <<: *container
     image: ${WIREGUARD_RELOADER_IMAGE_NAME:-quay.io/den4k/docker-reloader}:${WIREGUARD_RELOADER_IMAGE_TAG:-1.1.0}
@@ -190,7 +189,6 @@ services:
 
 volumes:
   netdata_cache:
-  netdata_log:
   traefik_acme:
   wireguard-ui_db:
   wireguard_config:
