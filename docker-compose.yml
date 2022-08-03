@@ -11,24 +11,16 @@ x-container: &container
 
 services:
   wg-server:
-    image: ${WIREGUARD_IMAGE_NAME:-lscr.io/linuxserver/wireguard}:${WIREGUARD_IMAGE_TAG:-1.0.20210914}
     <<: *container
+    build:
+      context: containers/wg-server
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
-    env_file:
-      - wg-server.env
     environment:
-      # Number of peers to create confs for. Required for server mode. Can also be a list of names: myPC,myPhone,myTablet (alphanumeric only)
-      PEERS: 0  # Disabled because ui is used
-      # External IP or domain name for docker host. Used in server mode. If set to auto, the container will try to determine and set the external IP automatically
-      SERVERPORT: ${WIREGUARD_SERVER_PORT:-51820}
-      SERVERURL: ${WIREGUARD_UI_HOST:-wg.localhost}
       TZ: ${TZ:-UTC}
     volumes:
-      - /lib/modules:/lib/modules
-      - /usr/src:/usr/src
-      - wireguard_config:/config
+      - wireguard_config:/etc/wireguard:ro
     expose:
       - ${WIREGUARD_SERVER_PORT:-51820}
     ports:
