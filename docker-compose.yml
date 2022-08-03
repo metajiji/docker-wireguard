@@ -186,7 +186,6 @@ services:
       - traefik.http.services.wireguard_netdata.loadbalancer.server.scheme=http
     volumes:
       - ./volumes/netdata/etc/netdata:/etc/netdata
-      - ./volumes/netdata/web/docker:/usr/share/netdata/web/docker:ro
       - /etc/group:/host/etc/group:ro
       - /etc/os-release:/host/etc/os-release:ro  # it can be /etc/lsb-release and dependig on you linux distro
       - /etc/passwd:/host/etc/passwd:ro
