@@ -31,6 +31,8 @@ services:
       - wireguard_config:/config
     expose:
       - ${WIREGUARD_SERVER_PORT:-51820}
+    ports:
+      - 127.0.0.1:${COREDNS_PROMETHEUS_PORT:-9153}:${COREDNS_PROMETHEUS_PORT:-9153}  # For monitoring coredns via netdata
     labels:
       - traefik.enable=true
       - traefik.udp.routers.wireguard.entrypoints=wireguard
@@ -39,6 +41,7 @@ services:
       net.ipv4.conf.all.src_valid_mark: 1
       net.ipv4.ip_forward: 1
       # net.ipv4.tcp_congestion_control: bbr
+
   wg-ui:
     image: ${WIREGUARD_UI_IMAGE_NAME:-ngoduykhanh/wireguard-ui}:${WIREGUARD_UI_IMAGE_TAG:-0.3.7}
     <<: *container
@@ -61,6 +64,18 @@ services:
     volumes:
       - wireguard-ui_db:/app/db
       - wireguard_config:/etc/wireguard
+
+  coredns:
+    image: ${COREDNS_IMAGE_NAME:-coredns/coredns}:${COREDNS_IMAGE_TAG:-1.9.3}
+    <<: *container
+    network_mode: service:wg-server
+    environment:
+      TZ: ${TZ:-UTC}
+      COREDNS_PROMETHEUS_PORT: ${COREDNS_PROMETHEUS_PORT:-9153}
+      COREDNS_PROMETHEUS_HOST: ${COREDNS_PROMETHEUS_HOST:-0.0.0.0}
+    volumes:
+      - ./volumes/coredns/Corefile:/Corefile:ro
+
   traefik:
     <<: *container
     image: ${TRAEFIK_IMAGE_NAME:-traefik}:${TRAEFIK_IMAGE_TAG:-v2.8.1}
@@ -142,6 +157,7 @@ services:
       ## Default scheme redirect middleware
       - traefik.http.middlewares.default-https-redirect.redirectScheme.scheme=https
       - traefik.http.middlewares.default-https-redirect.redirectScheme.permanent=true
+
   netdata:
     <<: *container
     image: ${NETDATA_IMAGE_NAME:-netdata/netdata}:${NETDATA_IMAGE_TAG:-v1.35.1}
@@ -178,6 +194,7 @@ services:
       - /sys:/host/sys:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - netdata_cache:/var/cache/netdata
+
   reloader:
     <<: *container
     image: ${WIREGUARD_RELOADER_IMAGE_NAME:-quay.io/den4k/docker-reloader}:${WIREGUARD_RELOADER_IMAGE_TAG:-1.1.0}

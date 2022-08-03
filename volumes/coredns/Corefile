@@ -1,0 +1,18 @@
+.:53 {
+    prometheus {$COREDNS_PROMETHEUS_HOST}:{$COREDNS_PROMETHEUS_PORT}
+#    reload 2s 1s  # Useful for maintenance
+    loop
+    log
+    errors
+
+    cache {
+        success 10000 300
+        denial 1 1  # TODO: replace with "disable denial" after upgrade https://github.com/coredns/coredns/pull/5540
+        #disable denial  # TODO: Enable after upgrade
+    }
+
+    forward . tls://1.1.1.1 tls://1.0.0.1 {
+        tls_servername cloudflare-dns.com
+        max_fails 0
+    }
+}
