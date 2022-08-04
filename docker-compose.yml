@@ -159,12 +159,10 @@ services:
       - SYS_PTRACE
     security_opt:
       - apparmor:unconfined
+    env_file:
+      - netdata.env
     environment:
-      DISABLE_TELEMETRY: ${NETDATA_DISABLE_TELEMETRY:-1}
-      DO_NOT_TRACK: ${NETDATA_DO_NOT_TRACK:-1}
-      PGID: ${NETDATA_PGID:-''}  # getent group docker | cut -d: -f3; or stat -c %g /var/run/docker.sock
       TZ: ${TZ:-UTC}
-      VIRTUALIZATION: ${NETDATA_VIRTUALIZATION:-none}  # VIRTUALIZATION=$(systemd-detect-virt -v) docker-compose up
     labels:
       - traefik.enable=true
       - traefik.http.routers.wireguard_netdata.entrypoints=https
