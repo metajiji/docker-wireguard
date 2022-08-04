@@ -29,6 +29,8 @@ services:
       - traefik.enable=true
       - traefik.udp.routers.wireguard.entrypoints=wireguard
       - traefik.udp.services.wireguard.loadbalancer.server.port=${WIREGUARD_SERVER_PORT:-51820}
+    healthcheck:
+      test: ping -q4 -c1 -W1 -w3 $$(ip -br -4 addr show dev wg0 | awk '{split($$NF,a,"/");print a[1]}')
     sysctls:
       net.ipv4.conf.all.src_valid_mark: 1
       net.ipv4.ip_forward: 1
@@ -86,7 +88,7 @@ services:
       --entryPoints.api.http.redirections.entryPoint.to=api
       --entryPoints.http.address=:80
       --entryPoints.https.address=:443
-      --entryPoints.ping.address=127.0.0.1:${TRAEFIK_PING_PORT:-8083}
+      --entryPoints.ping.address=127.0.0.1:${TRAEFIK_PING_PORT:-8082}
       --entryPoints.wireguard.address=:${WIREGUARD_SERVER_PORT:-51820}/udp
       --global.checkNewVersion=true
       --global.sendAnonymousUsage=false
@@ -112,7 +114,7 @@ services:
       test: >-
         traefik
         healthcheck
-        --entryPoints.ping.address=127.0.0.1:${TRAEFIK_PING_PORT:-8083}
+        --entryPoints.ping.address=127.0.0.1:${TRAEFIK_PING_PORT:-8082}
         --ping.entryPoint=ping
     volumes:
       - ./volumes/traefik/etc/traefik:/etc/traefik:ro
