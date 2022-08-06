@@ -2,9 +2,20 @@
 
 watch:
   - path: /etc/wireguard/wg0.conf
+    container: wireguard-wg-server-1
     command:
       - bash
       - -xec
       - |-
         wg syncconf wg0 <(wg-quick strip wg0)
-    container: wireguard-wg-server-1
+  - path: /etc/bird/bird.conf
+    container: &wireguard-bird-container wireguard-bird-1
+    command: &birdc-configure
+      - birdc
+      - configure
+  - path: /etc/bird/cidr-by-as.txt
+    container: *wireguard-bird-container
+    command: *birdc-configure
+  - path: /etc/bird/cidr-rkn.txt
+    container: *wireguard-bird-container
+    command: *birdc-configure

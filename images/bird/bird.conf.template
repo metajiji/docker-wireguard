@@ -1,0 +1,41 @@
+log "/dev/stdout" all;
+router id $ROUTER_ID;
+
+protocol kernel {
+    scan time 60;
+    ipv4 {
+        import all;
+        # export all;  # Actually insert routes into the kernel routing table
+    };
+}
+
+protocol device {
+    scan time 60;
+}
+
+protocol direct {
+    interface "tun*", "ppp*", "wg*";  # Restrict network interfaces it works with
+}
+
+protocol static static_bgp {
+    ipv4 {
+        import all;
+    };
+    include "/etc/bird/cidr-by-as.txt";
+    include "/etc/bird/cidr-rkn.txt";
+}
+
+protocol bgp HomeRouter {
+    description "Home Router";
+    neighbor $NEIGHBOR_IP as $NEIGHBOR_AS;
+
+    ipv4 {
+        import none;
+        export where proto = "static_bgp";
+    };
+
+    local as $LOCAL_AS;
+    passive off;
+    multihop;
+    source address $SOURCE_IP;
+}
