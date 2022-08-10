@@ -52,6 +52,24 @@ def rkn_parser(dump_file='dump.csv',
     logging.info('RKN parser is done')
 
 
+def rkn_fetch(url, data_dir='/data/z-i'):
+    cmd = 'git clone --depth 1 "%s"' % url
+    cwd = os.path.dirname(data_dir)
+
+    if os.path.exists(os.path.join(data_dir, '.git/config')):
+        cmd = 'git pull --depth=1 --update-shallow --rebase --prune'
+        cwd = data_dir
+
+    logging.debug('RKN execute command: %s' % cmd)
+
+    process = subprocess.run(cmd, cwd=cwd, shell=True, text=True, capture_output=True)
+    process_log = process.stdout
+    if process.returncode > 0:
+        process_log = process.stderr
+    for line in process_log.splitlines():
+        logging.info(line)
+
+
 def logging_init(log_ini, log_level='INFO'):
     logging_ini = log_ini
 
@@ -133,24 +151,6 @@ def gen_static(records_template='%s',
 
     os.rename(tmp_out_file, out_cidr_file)
     logging.info('Static parser is done')
-
-
-def rkn_fetch(url, data_dir='/data/z-i'):
-    cmd = 'git clone --depth 1 "%s"' % url
-    cwd = os.path.dirname(data_dir)
-
-    if os.path.exists(os.path.join(data_dir, '.git/config')):
-        cmd = 'git pull --depth=1 --update-shallow --rebase --prune'
-        cwd = data_dir
-
-    logging.debug('RKN execute command: %s' % cmd)
-
-    process = subprocess.run(cmd, cwd=cwd, shell=True, text=True, capture_output=True)
-    process_log = process.stdout
-    if process.returncode > 0:
-        process_log = process.stderr
-    for line in process_log.splitlines():
-        logging.info(line)
 
 
 def config_update(args):
