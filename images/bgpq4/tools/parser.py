@@ -113,6 +113,28 @@ def gen_by_as_num(cmd='bgpq4',
     logging.info('BGPQ4 parser is done')
 
 
+def gen_static(records_template='%s',
+               static_list_file='static-list.txt',
+               out_cidr_file='cidr-static.txt'):
+    logging.info('Static parser is started')
+
+    tmp_out_file = '%s.tmp' % out_cidr_file
+    with open(static_list_file, 'r', encoding='ascii', errors='ignore') as static_fd,\
+         open(tmp_out_file, 'w', encoding='utf-8') as cidr_fd:
+        for static_line in static_fd:
+            static_sline = static_line.strip()
+            # Skip comments and empty lines
+            if static_sline.startswith('#') or len(static_sline) == 0:
+                continue
+
+            # Strip inline comments
+            cidr = static_sline.replace('\t', ' ').split(' ')[0]
+            cidr_fd.write(records_template % cidr)
+
+    os.rename(tmp_out_file, out_cidr_file)
+    logging.info('Static parser is done')
+
+
 def rkn_fetch(url, data_dir='/data/z-i'):
     cmd = 'git clone --depth 1 "%s"' % url
     cwd = os.path.dirname(data_dir)
@@ -147,6 +169,12 @@ def config_update(args):
                       records_template=args.bgpq4_records_template,
                       as_list_file=args.bgpq4_as_list_file,
                       out_cidr_file=args.bgpq4_out_cidr_file)
+
+    if args.static:
+        logging.info('Execute static')
+        gen_static(records_template=args.static_records_template,
+                   static_list_file=args.static_list_file,
+                   out_cidr_file=args.static_out_cidr_file)
     logging.info('Config update task done')
 
 
@@ -208,6 +236,19 @@ if __name__ == '__main__':
     parser.add_argument('--bgpq4-out-cidr-file', '-O',
                         default=os.path.join(_file, 'cidr-by-as.txt'),
                         help='Output cirds file by as (default: %(default)s)')
+    parser.add_argument('--static', '-s',
+                        default=True,
+                        action=argparse.BooleanOptionalAction,
+                        help='Enable static parser (default: %(default)s)')
+    parser.add_argument('--static-records-template', '-S',
+                        default='route %s reject;\n',
+                        help='Template for out records (default: %(default)s)')
+    parser.add_argument('--static-list-file', '-c',
+                        default=os.path.join(_file, 'static-list.txt'),
+                        help='Input static prefixes file (default: %(default)s)')
+    parser.add_argument('--static-out-cidr-file', '-f',
+                        default=os.path.join(_file, 'cidr-static.txt'),
+                        help='Output cirds file with static prefixes (default: %(default)s)')
     args = parser.parse_args()
 
     logging_init(args.log_ini, log_level=args.log_level.upper())

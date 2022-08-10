@@ -83,6 +83,8 @@ services:
       --rkn-out-cidr-file /data/cidr-rkn.txt
       --bgpq4-as-list-file /config/as-list.txt
       --bgpq4-out-cidr-file /data/cidr-by-as.txt
+      --static-list-file /config/static-list.txt
+      --static-out-cidr-file /data/cidr-static.txt
       --log-level debug
     sysctls:
       net.ipv4.tcp_window_scaling: 1
