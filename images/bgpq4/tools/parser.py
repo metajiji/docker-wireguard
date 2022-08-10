@@ -12,6 +12,7 @@ import ipaddress
 import subprocess
 import multiprocessing
 import time
+import dns.resolver
 import schedule
 
 
@@ -131,6 +132,43 @@ def gen_by_as_num(cmd='bgpq4',
     logging.info('BGPQ4 parser is done')
 
 
+def get_prefixes_by_dns(dns_record, dns_resolvers=[]):
+    resolver = dns.resolver.Resolver(configure=False)
+    resolver.nameservers = dns_resolvers
+    try:
+        answer = resolver.resolve(dns_record, 'A')
+    except Exception:
+        logging.warning('Unable to resolve %s' % dns_record)
+
+    return ['%s/32' % ip.to_text() for ip in answer]
+
+
+def gen_by_dns(dns_resolvers=[],
+               records_template='%s',
+               dns_list_file='dns-list.txt',
+               out_cidr_file='cidr-by-dns.txt'):
+    logging.info('DNS parser is started')
+
+    tmp_out_file = '%s.tmp' % out_cidr_file
+    with open(dns_list_file, 'r', encoding='ascii', errors='ignore') as dns_fd,\
+         open(tmp_out_file, 'w', encoding='utf-8') as cidr_fd:
+        for dns_line in dns_fd:
+            dns_sline = dns_line.strip()
+            # Skip comments and empty lines
+            if dns_sline.startswith('#') or len(dns_sline) == 0:
+                continue
+
+            # Strip inline comments
+            dns_record = dns_sline.replace('\t', ' ').split(' ')[0]
+
+            cidr_fd.write('# %s\n' % dns_sline)
+            for cidr in get_prefixes_by_dns(dns_record, dns_resolvers=dns_resolvers):
+                cidr_fd.write(records_template % cidr)
+
+    os.rename(tmp_out_file, out_cidr_file)
+    logging.info('DNS parser is done')
+
+
 def gen_static(records_template='%s',
                static_list_file='static-list.txt',
                out_cidr_file='cidr-static.txt'):
@@ -169,6 +207,13 @@ def config_update(args):
                       records_template=args.bgpq4_records_template,
                       as_list_file=args.bgpq4_as_list_file,
                       out_cidr_file=args.bgpq4_out_cidr_file)
+
+    if args.dns:
+        logging.info('Execute dns')
+        gen_by_dns(dns_resolvers=list(map(str.strip, args.dns_resolvers.split(','))),
+                   records_template=args.dns_records_template,
+                   dns_list_file=args.dns_list_file,
+                   out_cidr_file=args.dns_out_cidr_file)
 
     if args.static:
         logging.info('Execute static')
@@ -220,6 +265,22 @@ if __name__ == '__main__':
     parser.add_argument('--rkn-out-cidr-file', '-o',
                         default=os.path.join(_file, 'cidr-rkn.txt'),
                         help='RKN output cirds file (default: %(default)s)')
+    parser.add_argument('--dns', '-e',
+                        default=True,
+                        action=argparse.BooleanOptionalAction,
+                        help='Enable dns parser (default: %(default)s)')
+    parser.add_argument('--dns-resolvers', '-m',
+                        default='1.1.1.1',
+                        help='Comma separated dns resolvers (default: %(default)s)')
+    parser.add_argument('--dns-records-template', '-g',
+                        default='route %s reject;\n',
+                        help='Template for dns out records (default: %(default)s)')
+    parser.add_argument('--dns-list-file', '-j',
+                        default=os.path.join(_file, 'dns-list.txt'),
+                        help='Input dns file (default: %(default)s)')
+    parser.add_argument('--dns-out-cidr-file', '-k',
+                        default=os.path.join(_file, 'cidr-by-dns.txt'),
+                        help='Output cirds file by dns (default: %(default)s)')
     parser.add_argument('--bgpq4', '-b',
                         default=True,
                         action=argparse.BooleanOptionalAction,

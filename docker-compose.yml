@@ -74,25 +74,23 @@ services:
     <<: *container
     build:  # TODO: Build and push images to quay.io/den4k/bgpq4
       context: ./images/bgpq4
+    network_mode: service:wg-server
     entrypoint: python
     command: >-
       /tools/parser.py
-      --update-interval ${BGP_UPDATE_INTERVAL:-300}
+      --update-interval ${BGP_PARSER_UPDATE_INTERVAL:-300}
       --rkn-dir /data/z-i
       --rkn-dump-file /data/z-i/dump.csv
       --rkn-out-cidr-file /data/cidr-rkn.txt
       --bgpq4-as-list-file /config/as-list.txt
       --bgpq4-out-cidr-file /data/cidr-by-as.txt
+      --dns-resolvers $BGP_PARSER_DNS_RESOLVER
+      --dns-list-file /config/dns-list.txt
+      --dns-out-cidr-file /data/cidr-by-dns.txt
       --static-list-file /config/static-list.txt
       --static-out-cidr-file /data/cidr-static.txt
       --log-level debug
-      $BGPQ4_EXTRA_ARGS
-    sysctls:
-      net.ipv4.tcp_window_scaling: 1
-      # net.core.rmem_max: 2097152
-      # net.core.wmem_max: 2097152
-      net.ipv4.tcp_rmem: 4096 87380 2097152
-      net.ipv4.tcp_wmem: 4096 65536 2097152
+      $BGP_PARSER_EXTRA_ARGS
     volumes:
       - ./volumes/bgpq4:/config:ro
       - bird:/data

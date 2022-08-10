@@ -22,6 +22,7 @@ protocol static static_bgp {
         import all;
     };
     include "/etc/bird/cidr-by-as.txt";
+    include "/etc/bird/cidr-by-dns.txt";
     include "/etc/bird/cidr-static.txt";
     include "/etc/bird/cidr-rkn.txt";
 }

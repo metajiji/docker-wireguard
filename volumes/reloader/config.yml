@@ -16,6 +16,9 @@ watch:
   - path: /etc/bird/cidr-by-as.txt
     container: *wireguard-bird-container
     command: *birdc-configure
+  - path: /etc/bird/cidr-by-dns.txt
+    container: *wireguard-bird-container
+    command: *birdc-configure
   - path: /etc/bird/cidr-rkn.txt
     container: *wireguard-bird-container
     command: *birdc-configure
