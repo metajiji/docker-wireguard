@@ -1,0 +1,4 @@
+# One line = one CIDR
+#
+
+1.2.3.4/32  # example cidr
