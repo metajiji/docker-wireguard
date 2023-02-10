@@ -135,6 +135,7 @@ def gen_by_as_num(cmd='bgpq4',
 def get_prefixes_by_dns(dns_record, dns_resolvers=[]):
     resolver = dns.resolver.Resolver(configure=False)
     resolver.nameservers = dns_resolvers
+    answer = []
     try:
         answer = resolver.resolve(dns_record, 'A')
     except Exception:
