@@ -9,6 +9,9 @@ _term() {
 
 trap _term SIGTERM
 
+# modprobe ip_tables
+# modprobe iptable_filter
+
 wg-quick up wg0
 
 sleep infinity &
