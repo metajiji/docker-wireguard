@@ -27,3 +27,7 @@ firewall-cmd --permanent --add-port=5182/udp  # wireguard
 firewall-cmd --reload
 firewall-cmd --list-all --zone=public
 ```
+
+## Links
+
+- <https://www.procustodibus.com/blog/2021/03/wireguard-allowedips-calculator/>
